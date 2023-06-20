@@ -16,77 +16,35 @@ async function scrapeData(url) {
   });
 
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: false,
     defaultViewport: null,
   });
   const page = await browser.newPage();
-  await page.goto(url);
+  await page.goto(url); // Go to url and wait for 60s for the page to load
+
+  await page.waitForSelector(".default");
 
   const results = [];
 
-  //   let i = 1;
   try {
     while (true) {
-      let rows = await page.$x('//*[@id="resId1::db"]/table/tbody/tr');
+      const rows = await page.$x(
+        '//*[@id="default"]/div/div/div/div/section/div[2]/ol/li[1]/article'
+      );
+      console.log("Printing Rows", rows);
 
-      for (const row of rows) {
-        const cols = await row.$$("td");
-
-        const rowData = {};
-
-        for (const [i, col] of cols.entries()) {
-          const value = await page.evaluate((el) => el.textContent, col);
-          rowData[`col${i + 1}`] = value;
-          // console.log(value);
-        }
-
-        results.push(rowData);
-      }
-
-      // const isDisabled = await page.evaluate(() => {
-      //   const btn = document.querySelector("#resId1\\:\\:nb_nx");
-      //   return btn.disabled || btn.style.display === "none" || !btn;
-      // });
-
-      // if (isDisabled) {
-      //   break;
-      // } else {
-      //   await page.click("#resId1\\:\\:nb_nx");
-      //   await page.waitForTimeout(2000);
-      // }
-
-      // Check if the "Next" button is disabled
-      const nextButton = await page.$("#resId1\\:\\:nb_nx");
-      const isDisabled = nextButton
-        ? await page.evaluate(
-            (btn) => btn.disabled || btn.style.display === "none",
-            nextButton
-          )
-        : true;
+      const nextButton = await page.$("li.next a");
+      const isDisabled = await page.evaluate(
+        (button) => button.disabled || button.style.display === "none",
+        nextButton
+      );
 
       if (isDisabled) {
-        // If the "Next" button is disabled, we've reached the last page
         break;
       } else {
-        // Otherwise, click the "Next" button and continue scraping
         await nextButton.click();
-        // Wait for any JavaScript to run and update the table
-        await page.waitForTimeout(2000);
-        //   i++;
+        await page.waitForNavigation();
       }
-
-      // try {
-      //   const node = await page.waitForSelector("#resId1\\:\\:nb_nx", {
-      //     timeout: 2000,
-      //   });
-      //   // click the next button and wait for the page to load
-
-      //   await node.click();
-      // } catch (error) {
-      //   // No more pages left
-      //   console.log("No more pages");
-      //   break;
-      // }
     }
   } catch (e) {
     console.log("Checking Error ", e);
@@ -94,16 +52,11 @@ async function scrapeData(url) {
 
   console.log(results);
 
-  //   const [el] = await page.$x('//*[@id="resId1::db"]/table');
-  //   const src = await el.getProperty("textContent");
-  //   const srcText = await src.jsonValue();
+  if (browser.isConnected()) {
+    await browser.close();
+  }
 
-  //   console.log(srcText);
-
-  await browser.close();
-  await csvWriter.writeRecords(results);
+  // await csvWriter.writeRecords(results);
 }
 
-scrapeData(
-  "https://apps.pencom.gov.ng/ecrsexternal/faces/employers.jsf;jsessionid=dytnsDN1Gyi1B-i9FeP712GL5yPbHorgvXNZtk868davrBQiJ2Ns!129555021"
-);
+scrapeData("https://books.toscrape.com/");
